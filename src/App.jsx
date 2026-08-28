@@ -26,6 +26,7 @@ import ChildWorkspace from './components/ChildWorkspace/ChildWorkspace';
 import ParentView from './components/ParentView/ParentView';
 import ActivityLibrary from './components/ActivityLibrary/ActivityLibrary';
 import SettingsView from './components/Settings/SettingsView';
+import VisualSchedulesView from './components/VisualSchedules/VisualSchedulesView';
 
 function App() {
   // State management
@@ -383,9 +384,37 @@ function App() {
         }}
       />
 
-      {/* Main Workspace: Activity Library, Settings, Parent View, Child Workspace, or Homepage Dashboard */}
+      {/* Main Workspace: Visual Schedules, Activity Library, Settings, Parent View, Child Workspace, or Homepage Dashboard */}
       <main className="dashboard-main">
-        {currentNav === 'library' ? (
+        {selectedChildWorkspace ? (
+          <ChildWorkspace
+            child={selectedChildWorkspace}
+            onBackToDashboard={() => {
+              triggerProgressBar();
+              setSelectedChildWorkspace(null);
+            }}
+            onEditChild={handleEditChild}
+            onTriggerToast={addToast}
+            onTriggerProgressBar={triggerProgressBar}
+          />
+        ) : currentNav === 'schedules' ? (
+          <VisualSchedulesView
+            childrenList={childrenList}
+            onOpenChild={handleOpenChild}
+            onBackToDashboard={() => {
+              triggerProgressBar();
+              setCurrentNav('dashboard');
+            }}
+            onTriggerToast={addToast}
+            onTriggerProgressBar={triggerProgressBar}
+            groups={nurseryInfo.groups || NURSERY_INFO.groups}
+            onUpdateChildStatus={(childId, newStatus) => {
+              setChildrenList((prev) =>
+                prev.map((c) => (c.id === childId ? { ...c, scheduleStatus: newStatus } : c))
+              );
+            }}
+          />
+        ) : currentNav === 'library' ? (
           <ActivityLibrary
             onBackToDashboard={() => {
               triggerProgressBar();
@@ -414,22 +443,11 @@ function App() {
           />
         ) : currentNav === 'home-activities' || currentNav === 'parent-view' ? (
           <ParentView
-            child={selectedChildWorkspace || childrenList.find((c) => c.name === 'Adam') || childrenList[0]}
+            child={childrenList.find((c) => c.name === 'Adam') || childrenList[0]}
             onBackToDashboard={() => {
               triggerProgressBar();
               setCurrentNav('dashboard');
             }}
-            onTriggerToast={addToast}
-            onTriggerProgressBar={triggerProgressBar}
-          />
-        ) : selectedChildWorkspace ? (
-          <ChildWorkspace
-            child={selectedChildWorkspace}
-            onBackToDashboard={() => {
-              triggerProgressBar();
-              setSelectedChildWorkspace(null);
-            }}
-            onEditChild={handleEditChild}
             onTriggerToast={addToast}
             onTriggerProgressBar={triggerProgressBar}
           />
