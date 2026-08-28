@@ -24,6 +24,8 @@ import Footer from './components/Footer';
 
 import ChildWorkspace from './components/ChildWorkspace/ChildWorkspace';
 import ParentView from './components/ParentView/ParentView';
+import ActivityLibrary from './components/ActivityLibrary/ActivityLibrary';
+import SettingsView from './components/Settings/SettingsView';
 
 function App() {
   // State management
@@ -31,6 +33,20 @@ function App() {
   const [activities, setActivities] = useState(INITIAL_ACTIVITIES);
   const [currentNav, setCurrentNav] = useState('dashboard');
   const [selectedChildWorkspace, setSelectedChildWorkspace] = useState(null);
+  const [demoRole, setDemoRole] = useState('educator');
+
+  // Nursery Info state initialized from localStorage with fallback to NURSERY_INFO
+  const [nurseryInfo, setNurseryInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('mylittlesteps_settings');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Failed to load settings from localStorage:', e);
+    }
+    return NURSERY_INFO;
+  });
 
   // Load children from Supabase on mount (falls back to INITIAL_CHILDREN if not configured)
   useEffect(() => {
@@ -314,12 +330,31 @@ function App() {
 
   const handleOpenActivityLibrary = () => {
     triggerProgressBar();
+    setSelectedChildWorkspace(null);
+    setCurrentNav('library');
     addToast({
       title: 'Activity Library',
-      message: '48 visual routine & home activity cards available.',
+      message: 'Visual routine & home activity cards available.',
       icon: '📚',
       type: 'info',
     });
+  };
+
+  // Settings Save Handler
+  const handleSaveSettings = (updatedNurseryInfo, role) => {
+    triggerProgressBar();
+    setNurseryInfo(updatedNurseryInfo);
+    if (role) {
+      setDemoRole(role);
+      if (role === 'parent') {
+        setCurrentNav('parent-view');
+      }
+    }
+    try {
+      localStorage.setItem('mylittlesteps_settings', JSON.stringify(updatedNurseryInfo));
+    } catch (e) {
+      console.warn('Failed to save settings to localStorage:', e);
+    }
   };
 
   return (
@@ -335,10 +370,9 @@ function App() {
         currentNav={currentNav}
         onNavSelect={(navId, label) => {
           triggerProgressBar();
+          setSelectedChildWorkspace(null);
           setCurrentNav(navId);
-          if (navId === 'dashboard') {
-            setSelectedChildWorkspace(null);
-          } else {
+          if (navId !== 'dashboard') {
             addToast({
               title: `${label} View`,
               message: `Switched view to ${label}.`,
@@ -349,9 +383,36 @@ function App() {
         }}
       />
 
-      {/* Main Workspace: Parent View, Child Workspace, or Homepage Dashboard */}
+      {/* Main Workspace: Activity Library, Settings, Parent View, Child Workspace, or Homepage Dashboard */}
       <main className="dashboard-main">
-        {currentNav === 'home-activities' || currentNav === 'parent-view' ? (
+        {currentNav === 'library' ? (
+          <ActivityLibrary
+            onBackToDashboard={() => {
+              triggerProgressBar();
+              setCurrentNav('dashboard');
+            }}
+            onTriggerToast={addToast}
+            onTriggerProgressBar={triggerProgressBar}
+          />
+        ) : currentNav === 'settings' ? (
+          <SettingsView
+            nurseryInfo={nurseryInfo}
+            onSaveSettings={handleSaveSettings}
+            onBackToDashboard={() => {
+              triggerProgressBar();
+              setCurrentNav('dashboard');
+            }}
+            onTriggerToast={addToast}
+            onTriggerProgressBar={triggerProgressBar}
+            demoRole={demoRole}
+            onRoleChange={(role) => {
+              setDemoRole(role);
+              if (role === 'parent') {
+                setCurrentNav('parent-view');
+              }
+            }}
+          />
+        ) : currentNav === 'home-activities' || currentNav === 'parent-view' ? (
           <ParentView
             child={selectedChildWorkspace || childrenList.find((c) => c.name === 'Adam') || childrenList[0]}
             onBackToDashboard={() => {
@@ -376,7 +437,7 @@ function App() {
           <>
             {/* Header with Nursery Info, Educator View & Add Child CTA */}
             <Header
-              nurseryInfo={NURSERY_INFO}
+              nurseryInfo={nurseryInfo}
               onOpenAddChild={() => {
                 setEditingChild(null);
                 setIsAddChildOpen(true);
@@ -466,7 +527,7 @@ function App() {
         )}
 
         {/* Footer */}
-        <Footer nurseryInfo={NURSERY_INFO} />
+        <Footer nurseryInfo={nurseryInfo} />
       </main>
 
       {/* Add / Edit Child Modal */}
@@ -480,7 +541,7 @@ function App() {
           }}
           onSaveChild={handleSaveChild}
           onDeleteChild={handleDeleteChild}
-          groups={NURSERY_INFO.groups}
+          groups={nurseryInfo.groups || NURSERY_INFO.groups}
           editingChild={editingChild}
         />
       )}
